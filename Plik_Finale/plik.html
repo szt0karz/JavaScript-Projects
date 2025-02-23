@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pobieranie i zapisywanie danych z plików Excel</title>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sekcja wyboru plików -->
+        <div class="input-container">
+            <input type="file" id="excelFile1" accept=".xlsx" />
+            <button onclick="showExcelFormats('RAPORT konto 000_MIESIĄC')" class="info-button">ℹ</button>
+            <button onclick="resetInputFirst()" class="delete-button">✖</button>
+        </div>
+        <div class="input-container">
+            <input type="file" id="excelFile2" accept=".xls" />
+            <button onclick="showExcelFormats('konto 000_MIESIĄC')" class="info-button">ℹ</button>
+            <button onclick="resetInputSecond()" class="delete-button">✖</button>
+        </div>
+        <!-- Sekcja przycisków -->
+        <div class="button-container">
+            <p><button onclick="getAndSaveData()">Pobierz i zapisz dane</button>
+                <button onclick="resetInputs()">Reset</button></p>
+            <div class="loader" id="loader" style="display: none;"></div>
+        </div>
+        <!-- Autor strony -->
+        <p class="author">Autor: Szymon Tokarz</p>
+    </div>
+    
+    <script>
+        // Funkcja do pokazania loadera
+        function showLoader() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block'; // Pokazuje loader podczas ładowania
+        }
+    
+        // Funkcja do ukrycia loadera
+        function hideLoader() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'none'; // Ukrywa loader po zakończeniu
+        }
+    
+        // Funkcja do normalizacji numeru telefonu (usuwanie wszystkich znaków, pozostawiając tylko cyfry)
+        function normalizePhoneNumber(num) {
+            return num ? num.toString().replace(/\D/g, '').trim() : '';
+        }
+    
+        // Funkcja do pobierania i zapisywania danych z plików Excel
+        function getAndSaveData() {
+            showLoader(); // Pokazuje loader
+            let file1 = document.getElementById('excelFile1').files[0];
+            let file2 = document.getElementById('excelFile2').files[0];
+
+            // Sprawdzenie, czy oba pliki zostały wybrane
+            if (!file1 || !file2) {
+                alert("Wybierz oba pliki Excel.");
+                hideLoader();
+                return;
+            }
+
+            // Odczyt pliku 1
+            let reader1 = new FileReader();
+            reader1.onload = function(e) {
+                let data1 = new Uint8Array(e.target.result);
+                let workbook1 = XLSX.read(data1, { type: 'array', encoding: 'ISO-8859-2' });
+
+                // Odczyt pliku 2
+                let reader2 = new FileReader();
+                reader2.onload = function(e) {
+                    let data2 = new Uint8Array(e.target.result);
+                    let workbook2 = XLSX.read(data2, { type: 'array', encoding: 'ISO-8859-2' });
+
+                    let worksheet1 = workbook1.Sheets[workbook1.SheetNames[0]];
+                    let worksheet2 = workbook2.Sheets[workbook2.SheetNames[0]];
+
+                    let jsonData1 = XLSX.utils.sheet_to_json(worksheet1);
+                    let jsonData2 = XLSX.utils.sheet_to_json(worksheet2);
+
+                    // Sprawdzenie, czy dane są puste
+                    if (jsonData1.length === 0 || jsonData2.length === 0) {
+                        alert("Jeden z wybranych plików Excel jest pusty.");
+                        hideLoader();
+                        return;
+                    }
+
+                    // Debugowanie nagłówków plików
+                    console.log('Nagłówki z pliku 1:', Object.keys(jsonData1[0]));
+                    console.log('Nagłówki z pliku 2:', Object.keys(jsonData2[0]));
+
+                    // Utwórz mapę numerów telefonów z drugiego pliku
+                    let phoneSumMap = {};
+                    jsonData2.forEach(row2 => {
+                        let phone = normalizePhoneNumber(row2['Numer telefonu']);
+                        let suma = parseFloat(row2['Suma netto']) || 0;
+                        phoneSumMap[phone] = (phoneSumMap[phone] || 0) + suma;
+                    });
+
+                    let mergedData = [];
+                    // Nagłówki wynikowe
+                    mergedData.push({
+                        'Numer telefonu': 'Numer telefonu',
+                        'Oddział': 'Oddział',
+                        'MPK': 'MPK',
+                        'Suma netto': 'Suma netto',
+                    });
+
+                    // Łączenie danych z obu plików na podstawie numeru telefonu
+                    jsonData1.forEach(row1 => {
+                        let phone = normalizePhoneNumber(row1['Numer']);
+                        let suma = phoneSumMap[phone] || 0;
+
+                        mergedData.push({
+                            'Numer telefonu': row1['Numer'] || 'Brak danych',
+                            'Oddział': row1['Oddział'] || 'Brak danych',
+                            'MPK': row1['MPK'] || 'Brak danych',
+                            'Suma netto': `${suma.toFixed(2)} zł`
+                        });
+                    });
+
+                    // Generowanie pliku wynikowego
+                    let newWorkbook = XLSX.utils.book_new();
+                    let newWorksheet = XLSX.utils.json_to_sheet(mergedData, { skipHeader: true });
+                    XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Merged Data');
+                    let wbout = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'binary' });
+                    saveAs(new Blob([s2ab(wbout)]), 'Rozliczenie konto.xlsx');
+                    hideLoader();
+                };
+                reader2.readAsArrayBuffer(file2);
+            };
+            reader1.readAsArrayBuffer(file1);
+        }
+    
+        // Funkcja konwertująca dane binarne do odpowiedniego formatu
+        function s2ab(s) {
+            let buf = new ArrayBuffer(s.length);
+            let view = new Uint8Array(buf);
+            for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+            return buf;
+        }
+
+        // Funkcja do wyświetlania informacji o formacie pliku
+        function showExcelFormats(format) {
+            alert("Upewnij się, że masz wybrany odpowiedni format: " + "\n" + format);
+        }
+        
+        // Funkcja do resetowania pierwszego pliku
+        function resetInputFirst() {
+            document.getElementById('excelFile1').value = '';
+            hideLoader();
+            alert("Pierwszy plik został zresetowany.");
+        }
+
+        // Funkcja do resetowania drugiego pliku
+        function resetInputSecond() {
+            document.getElementById('excelFile2').value = '';
+            hideLoader();
+            alert("Drugi plik został zresetowany.");
+        }
+    
+        // Funkcja do resetowania wszystkich plików
+        function resetInputs() {
+            document.getElementById('excelFile1').value = '';
+            document.getElementById('excelFile2').value = '';
+            hideLoader();
+            alert("Wszystkie pliki zostały zresetowane.");
+        }
+    </script>
+</body>
+</html>
