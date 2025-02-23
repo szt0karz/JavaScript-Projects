@@ -1,0 +1,7 @@
+To jest aplikacja napisana w języku JavaScript z wykorzystaniem technologii webowych takich jak HTML i CSS. JavaScript jest językiem skryptowym, który umożliwia interaktywność na stronach internetowych. W tym przypadku, aplikacja jest używana do pobierania danych z plików Excel, przetwarzania ich, a następnie zapisywania wyników w nowym pliku Excel.
+
+Aplikacja wykorzystuje zewnętrzne biblioteki, takie jak XLSX do pracy z plikami Excel oraz FileSaver.js do zapisywania plików na komputerze użytkownika. Użytkownik wybiera dwa pliki Excel, które aplikacja przetwarza, łączy dane, a następnie tworzy nowy plik do pobrania.
+
+Aplikacja była tworzona podczas praktyk w firmie Auto Partner i jest przykładem wykorzystania technologii webowych do rozwiązywania rzeczywistych problemów związanych z danymi.
+
+Aplikacja jest wykorzystywana do teraz, każdego roku przychodzą rachunki od pracowników dotyczące ich numerów telefonów. Ułatwia księgowym sprawdzanie błędów, kwot itp., automatycznie łącząc dane z różnych plików Excel i umożliwiając szybsze weryfikowanie poprawności danych. Dzięki niej, proces rozliczania jest bardziej efektywny, a błędy w fakturach mogą być łatwiej wychwycone.
